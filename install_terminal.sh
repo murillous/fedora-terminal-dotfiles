@@ -2,9 +2,14 @@
 
 echo "🚀 Iniciando a instalação do ambiente de terminal..."
 
+# O script roda via "curl | bash", então perguntas não podem ler do stdin (é o próprio script).
+# Usa o terminal quando existe; sem terminal (ex.: CI/container), responde com vazio.
+TTY=/dev/null
+if (exec < /dev/tty) 2>/dev/null; then TTY=/dev/tty; fi
+
 # 1. Instalar pacotes do sistema via DNF
 echo "📦 Instalando pacotes base..."
-sudo dnf install -y zsh fzf bat git curl util-linux-user kitty tar xdg-utils
+sudo dnf install -y zsh fzf bat git gh curl util-linux-user kitty tar xdg-utils
 
 # 2. Instalar Oh My Zsh (modo autônomo garantido)
 echo "🐚 Instalando Oh My Zsh..."
@@ -98,10 +103,10 @@ claude plugin marketplace add anthropics/claude-plugins-official 2>/dev/null
 claude plugin install mattpocock-skills@claude-plugins-official
 
 echo "🪨 Instalando o Caveman..."
-# < /dev/tty: o script roda via "curl | bash", então perguntas não podem ler do stdin
 npm install -g @caveman-ai/cli
-caveman setup --install < /dev/tty
-caveman setup --agent-native claude < /dev/tty
+caveman setup --install < "$TTY"
+caveman setup --agent-native claude < "$TTY"
+caveman setup --yes < "$TTY"
 
 # 8. Docker + Docker Compose
 echo "🐳 Instalando Docker e Docker Compose..."
@@ -134,7 +139,7 @@ dbus-send --session --type=method_call --dest=org.kde.KWin /KWin org.kde.KWin.re
 # As chaves NÃO ficam no repositório (ele é público). Elas são copiadas de uma pasta local,
 # ex.: um pendrive ou backup. Informe via SSH_BACKUP_DIR ou digite quando for perguntado.
 echo "🔑 Configurando o SSH..."
-if [ -z "$SSH_BACKUP_DIR" ] && [ -r /dev/tty ]; then
+if [ -z "$SSH_BACKUP_DIR" ] && [ "$TTY" = /dev/tty ]; then
   read -r -p "Caminho da pasta com o backup do .ssh (Enter para pular): " SSH_BACKUP_DIR < /dev/tty
 fi
 
