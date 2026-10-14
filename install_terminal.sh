@@ -44,7 +44,7 @@ fi
 echo "📂 Baixando configurações do GitHub..."
 
 # Link direto para o seu repositório (Assumindo que a branch principal é 'main')
-GITHUB_TAR_URL="https://raw.githubusercontent.com/murillous/fedora-terminal-dotfiles/main/terminal-setup.tar.gz"
+GITHUB_TAR_URL="https://media.githubusercontent.com/media/murillous/fedora-terminal-dotfiles/main/terminal-setup.tar.gz"
 
 # O parâmetro -f (fail) faz o curl avisar se der erro 404
 curl -L -f -o "$HOME/terminal-setup.tar.gz" "$GITHUB_TAR_URL"
