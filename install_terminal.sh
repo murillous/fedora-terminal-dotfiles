@@ -9,7 +9,7 @@ if (exec < /dev/tty) 2>/dev/null; then TTY=/dev/tty; fi
 
 # 1. Instalar pacotes do sistema via DNF
 echo "📦 Instalando pacotes base..."
-sudo dnf install -y zsh fzf bat git gh curl util-linux-user kitty tar xdg-utils
+sudo dnf install -y zsh fzf bat git gh curl util-linux-user kitty tar
 
 # 2. Instalar Oh My Zsh (modo autônomo garantido)
 echo "🐚 Instalando Oh My Zsh..."
@@ -91,7 +91,14 @@ echo "📦 Instalando o pnpm..."
 grep -qx 'allow-scripts=pnpm' "$HOME/.npmrc" 2>/dev/null || echo 'allow-scripts=pnpm' >> "$HOME/.npmrc"
 npm install -g pnpm
 
-# 7. Claude Code + skills do Matt Pocock + Caveman
+# Bun: o Context Mode usa ele para rodar o sandbox de 3 a 5x mais rápido
+echo "🥟 Instalando o Bun..."
+if [ ! -x "$HOME/.bun/bin/bun" ]; then
+  # O instalador adiciona o ~/.bun/bin ao PATH no .zshrc (por isso só roda uma vez)
+  curl -fsSL https://bun.sh/install | bash
+fi
+
+# 7. Claude Code + skills do Matt Pocock + Caveman + Context Mode
 echo "🤖 Instalando Claude Code..."
 export PATH="$HOME/.local/bin:$PATH"
 if ! command -v claude >/dev/null 2>&1; then
@@ -102,11 +109,22 @@ echo "🧠 Instalando as skills do Matt Pocock..."
 claude plugin marketplace add anthropics/claude-plugins-official 2>/dev/null
 claude plugin install mattpocock-skills@claude-plugins-official
 
-echo "🪨 Instalando o Caveman..."
-npm install -g @caveman-ai/cli
-caveman setup --install < "$TTY"
-caveman setup --agent-native claude < "$TTY"
-caveman setup --yes < "$TTY"
+echo "🪨 Instalando as skills do Caveman..."
+npx -y skills add JuliusBrussee/caveman -g -s '*' -y
+
+echo "🗜️  Instalando o Context Mode..."
+claude plugin marketplace add mksglu/context-mode
+claude plugin install context-mode@context-mode
+
+echo "🐴 Instalando o Ponytail..."
+claude plugin marketplace add DietrichGebert/ponytail
+claude plugin install ponytail@ponytail
+
+# O ponytail liga sozinho por hook; o caveman (só skills) não tem hook, então o CLAUDE.md
+# global manda ativar os dois juntos em toda sessão
+CAVEMAN_RULE='- Em toda sessão, use o caveman (modo padrão) junto com o ponytail: resposta curta do caveman, código mínimo do ponytail.'
+mkdir -p "$HOME/.claude"
+grep -qxF -- "$CAVEMAN_RULE" "$HOME/.claude/CLAUDE.md" 2>/dev/null || printf '\n%s\n' "$CAVEMAN_RULE" >> "$HOME/.claude/CLAUDE.md"
 
 # 8. Docker + Docker Compose
 echo "🐳 Instalando Docker e Docker Compose..."
@@ -117,16 +135,7 @@ sudo systemctl enable --now docker
 # Permite usar o docker sem sudo (vale a partir do próximo login)
 sudo usermod -aG docker "$USER"
 
-# 9. Google Chrome como navegador padrão
-echo "🌐 Instalando o Google Chrome..."
-if ! rpm -q google-chrome-stable >/dev/null 2>&1; then
-  # O RPM oficial também adiciona o repositório do Google para atualizações
-  sudo dnf install -y https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
-fi
-xdg-settings set default-web-browser google-chrome.desktop
-xdg-mime default google-chrome.desktop x-scheme-handler/http x-scheme-handler/https text/html
-
-# 10. Ajustes do KDE Plasma: Kitty como terminal padrão, Meta+Return e janelas instáveis
+# 9. Ajustes do KDE Plasma: Kitty como terminal padrão, Meta+Return e janelas instáveis
 echo "🖥️  Configurando o KDE Plasma..."
 kwriteconfig6 --file kdeglobals --group General --key TerminalApplication kitty
 kwriteconfig6 --file kdeglobals --group General --key TerminalService kitty.desktop
@@ -135,7 +144,7 @@ kwriteconfig6 --file kwinrc --group Plugins --key wobblywindowsEnabled true
 # Aplica o efeito na hora (o atalho vale a partir do próximo login)
 dbus-send --session --type=method_call --dest=org.kde.KWin /KWin org.kde.KWin.reconfigure 2>/dev/null
 
-# 11. Chaves e configuração SSH
+# 10. Chaves e configuração SSH
 # As chaves NÃO ficam no repositório (ele é público). Elas são copiadas de uma pasta local,
 # ex.: um pendrive ou backup. Informe via SSH_BACKUP_DIR ou digite quando for perguntado.
 echo "🔑 Configurando o SSH..."
