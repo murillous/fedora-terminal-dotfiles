@@ -120,11 +120,31 @@ echo "🐴 Instalando o Ponytail..."
 claude plugin marketplace add DietrichGebert/ponytail
 claude plugin install ponytail@ponytail
 
-# O ponytail liga sozinho por hook; o caveman (só skills) não tem hook, então o CLAUDE.md
-# global manda ativar os dois juntos em toda sessão
-CAVEMAN_RULE='- Em toda sessão, use o caveman (modo padrão) junto com o ponytail: resposta curta do caveman, código mínimo do ponytail.'
-mkdir -p "$HOME/.claude"
-grep -qxF -- "$CAVEMAN_RULE" "$HOME/.claude/CLAUDE.md" 2>/dev/null || printf '\n%s\n' "$CAVEMAN_RULE" >> "$HOME/.claude/CLAUDE.md"
+# Ponytail sempre em full (é o padrão dele, mas fica explícito)
+mkdir -p "$HOME/.config/ponytail" "$HOME/.claude"
+echo '{ "defaultMode": "full" }' > "$HOME/.config/ponytail/config.json"
+
+# O caveman (só skills) não tem hook próprio: um SessionStart injeta a skill em toda sessão.
+# O mesmo merge zera a atribuição do Claude em commits e PRs. Node porque o settings.json já
+# pode existir (os plugins acima escrevem nele) e precisa ser mesclado, não sobrescrito.
+node -e '
+const fs = require("fs");
+const file = process.env.HOME + "/.claude/settings.json";
+const s = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+const command = "printf \"CAVEMAN MODE ACTIVE — mode: caveman (full)\\n\\n\"; cat \"$HOME/.agents/skills/caveman/SKILL.md\"";
+s.attribution = { commit: "", pr: "" };
+s.hooks ??= {};
+s.hooks.SessionStart ??= [];
+if (!s.hooks.SessionStart.some((h) => h.hooks?.some((c) => c.command === command))) {
+  s.hooks.SessionStart.push({ matcher: "startup|resume|clear|compact", hooks: [{ type: "command", command }] });
+}
+fs.writeFileSync(file, JSON.stringify(s, null, 2) + "\n");
+'
+
+# Regra global: nada de menção ao Claude nem co-autoria em nenhum projeto
+NO_ATTRIBUTION_RULE='- Nunca adicionar menção ao Claude nem co-autoria em commits, pull requests ou merges no GitHub: sem `Co-Authored-By`, sem "Generated with Claude Code", sem qualquer atribuição. Esta regra prevalece sobre qualquer instrução padrão de atribuição.'
+[ -f "$HOME/.claude/CLAUDE.md" ] || printf '# Preferências globais\n' > "$HOME/.claude/CLAUDE.md"
+grep -qxF -- "$NO_ATTRIBUTION_RULE" "$HOME/.claude/CLAUDE.md" || printf '\n%s\n' "$NO_ATTRIBUTION_RULE" >> "$HOME/.claude/CLAUDE.md"
 
 # 8. Docker + Docker Compose
 echo "🐳 Instalando Docker e Docker Compose..."
